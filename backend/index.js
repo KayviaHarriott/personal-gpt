@@ -1,10 +1,13 @@
 import express from "express";
 import fetch from "node-fetch";
 import dotenv from "dotenv";
+import cors from "cors";
+
 
 dotenv.config(); // Load variables from .env
 
 const app = express();
+app.use(cors());
 app.use(express.json());
 
 const OLLAMA_URL = process.env.OLLAMA_URL;
