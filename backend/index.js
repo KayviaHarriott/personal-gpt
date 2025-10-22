@@ -24,17 +24,14 @@ app.post("/chat", async (req, res) => {
     }
 
     const response = await fetch(`${OLLAMA_URL}/api/chat`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "qwen3:8b",
-        messages,
-        stream: false, // change to true if you want streaming
-      }),
-    });
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ model: "qwen3:8b", messages, stream: true }),
+});
 
-    const data = await response.json();
-    res.json(data);
+res.setHeader("Content-Type", "text/event-stream");
+response.body.pipe(res);
+
   } catch (err) {
     console.error("Error contacting Ollama:", err);
     res.status(500).json({ error: "Failed to reach Ollama API" });
