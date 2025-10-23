@@ -2,6 +2,8 @@ import { useState } from "react";
 import "./Dashboard.css";
 import { streamChat } from "../api/chatAPI";
 import type { Message } from "../api/chatAPI";
+import { Box, Button, TextField } from "@mui/material";
+import { ChatBubble } from "../components/ChatBubble";
 
 export const Dashboard = () => {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -42,30 +44,57 @@ export const Dashboard = () => {
   };
 
   return (
-    <div className="chat-container">
-      <h2 className="title">Ollama Chat</h2>
-
-      <div className="chat-box">
-        {messages.map((m, i) => (
-          <div
-            key={i}
-            className={`message ${m.role === "user" ? "user" : "assistant"}`}
-          >
-            <strong>{m.role === "user" ? "You" : "Ollama"}:</strong>{" "}
-            {m.content}
+    <div className="h-screen flexjustify-center items-center w-full">
+      <div className="max-w-[800px] flex flex-col justify-between h-full pb-4">
+        <Box
+          className="h-full"
+          sx={{
+            width: "100%",
+          }}
+        >
+          <div className="w-full text-center font-bold">
+            <h2 className="">PersNote</h2>
           </div>
-        ))}
-      </div>
+          <Box>
+            {" "}
+            <div className="flex flex-col gap-3">
+              {messages.map((m, i) => (
+                <ChatBubble role={m.role} content={m.content} key={i} />
+              ))}
+            </div>
+            {/* <div className="input-box">
+                    <input
+                      type="text"
+                      value={input}
+                      placeholder="Type a message..."
+                      onChange={(e) => setInput(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+                    />
+                    <button onClick={sendMessage}>Send</button>
+                  </div> */}
+          </Box>
+        </Box>
 
-      <div className="input-box">
-        <input
-          type="text"
-          value={input}
-          placeholder="Type a message..."
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-        />
-        <button onClick={sendMessage}>Send</button>
+        <div className="flex gap-2">
+          <TextField
+            // label="Your Label"
+            sx={{ width: "100%" }}
+            variant="outlined"
+            slotProps={{ inputLabel: { shrink: false } }}
+            value={input}
+            placeholder="Type a message..."
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+          />
+          <Button
+            variant="contained"
+            sx={{ textTransform: "none", boxShadow: "none" }}
+            onClick={sendMessage}
+            className="w-1/6"
+          >
+            Send
+          </Button>
+        </div>
       </div>
     </div>
   );
