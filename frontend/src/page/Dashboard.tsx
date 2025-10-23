@@ -45,16 +45,17 @@ export const Dashboard = () => {
 
   return (
     <div className="h-screen flexjustify-center items-center w-full">
+      <div className="w-full text-center font-bold">
+        <h2 className="">PersNote</h2>
+      </div>
+
       <div className="max-w-[800px] flex flex-col justify-between h-full pb-4">
         <Box
-          className="h-full"
+          className="h-full overflow-scroll"
           sx={{
             width: "100%",
           }}
         >
-          <div className="w-full text-center font-bold">
-            <h2 className="">PersNote</h2>
-          </div>
           <Box>
             {" "}
             <div className="flex flex-col gap-3">
