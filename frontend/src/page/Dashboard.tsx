@@ -1,17 +1,27 @@
-import { useState } from "react";
-import "./Dashboard.css";
+import { useEffect, useState } from "react";
 import { streamChat } from "../api/chatAPI";
 import type { Message } from "../api/chatAPI";
-import { Box, Button, TextField } from "@mui/material";
 import { ChatBubble } from "../components/ChatBubble";
+import "./Dashboard.css";
 
 export const Dashboard = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
+  const [theme, setTheme] = useState(localStorage.getItem("theme") || "light");
+  const [isStreaming, setIsStreaming] = useState(false);
   const API_URL = import.meta.env.VITE_BACKEND_URL;
 
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem("theme", theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme((prev) => (prev === "light" ? "dark" : "light"));
+  };
+
   const sendMessage = async () => {
-    if (!input.trim()) return;
+    if (!input.trim() || isStreaming) return;
 
     const newMessages: Message[] = [
       ...messages,
@@ -20,14 +30,12 @@ export const Dashboard = () => {
 
     setMessages(newMessages);
     setInput("");
-
-    let partialReply = "";
+    setIsStreaming(true);
 
     try {
+      let partialReply = "";
       const finalReply = await streamChat(API_URL, newMessages, (partial) => {
         partialReply = partial;
-
-        // ✅ No unused variable warning (removed unused 'prev')
         setMessages([
           ...newMessages,
           { role: "assistant" as const, content: partialReply },
@@ -40,63 +48,174 @@ export const Dashboard = () => {
       ]);
     } catch (err) {
       console.error("Chat error:", err);
+      setMessages([
+        ...newMessages,
+        {
+          role: "assistant" as const,
+          content: "Sorry, I encountered an error. Please try again.",
+        },
+      ]);
+    } finally {
+      setIsStreaming(false);
     }
   };
 
   return (
-    <div className="h-screen flexjustify-center items-center w-full">
-      <div className="w-full text-center font-bold">
-        <h2 className="">PersNote</h2>
-      </div>
+    <div className="app-container">
+      {/* Sidebar */}
+      <div className="sidebar">
+        <div className="sidebar-header">
+          <div className="logo">
+            <div className="logo-icon">PN</div>
+            <span>PersNote</span>
+          </div>
+        </div>
 
-      <div className="max-w-[800px] flex flex-col justify-between h-full pb-4">
-        <Box
-          className="h-full overflow-scroll"
-          sx={{
-            width: "100%",
+        <button
+          className="new-chat-btn"
+          onClick={() => {
+            setMessages([]);
           }}
         >
-          <Box>
-            {" "}
-            <div className="flex flex-col gap-3">
-              {messages.map((m, i) => (
-                <ChatBubble role={m.role} content={m.content} key={i} />
-              ))}
-            </div>
-            {/* <div className="input-box">
-                    <input
-                      type="text"
-                      value={input}
-                      placeholder="Type a message..."
-                      onChange={(e) => setInput(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-                    />
-                    <button onClick={sendMessage}>Send</button>
-                  </div> */}
-          </Box>
-        </Box>
-
-        <div className="flex gap-2">
-          <TextField
-            // label="Your Label"
-            sx={{ width: "100%" }}
-            variant="outlined"
-            slotProps={{ inputLabel: { shrink: false } }}
-            value={input}
-            placeholder="Type a message..."
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-          />
-          <Button
-            variant="contained"
-            sx={{ textTransform: "none", boxShadow: "none" }}
-            onClick={sendMessage}
-            className="w-1/6"
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 16 16"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
           >
-            Send
-          </Button>
+            <path d="M8 3v10M3 8h10" />
+          </svg>
+          New Chat
+        </button>
+
+        <div className="chat-history" id="chatHistory">
+          {messages.length === 0 && (
+            <div className="history-item text-sm text-gray-500">
+              No chat history yet
+            </div>
+          )}
+        </div>
+
+        <div className="sidebar-footer">
+          <button className="theme-toggle" onClick={toggleTheme}>
+            {theme === "light" ? (
+              <>
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 16 16"
+                  fill="currentColor"
+                >
+                  <path d="M8 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0zm0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13z" />
+                </svg>
+                <span>Light Mode</span>
+              </>
+            ) : (
+              <>
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 16 16"
+                  fill="currentColor"
+                >
+                  <path d="M6 .278a.768.768 0 0 1 .08.858A7.208 7.208 0 0 0 5.202 4.6a7.2 7.2 0 0 0 7.318 7.277 8.35 8.35 0 0 1-4.175 4.123C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.752.752 0 0 1 6 .278z" />
+                </svg>
+                <span>Dark Mode</span>
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Main Chat Area */}
+      <div className="main-content">
+        <div className="chat-header">
+          <h1 className="chat-title">Chat</h1>
+        </div>
+
+        <div className="messages-area">
+          <div className="messages-container">
+            {messages.length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-icon">💬</div>
+                <h2>Welcome to PersNote</h2>
+                <p>Start a conversation with your AI assistant</p>
+                <div className="suggestion-chips">
+                  {[
+                    "Tell me about yourself",
+                    "What can you help me with?",
+                    "Let's have a conversation",
+                  ].map((prompt) => (
+                    <div
+                      key={prompt}
+                      className="chip"
+                      onClick={() => {
+                        setInput(prompt);
+                        sendMessage();
+                      }}
+                    >
+                      {prompt}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              messages.map((m, i) => (
+                <ChatBubble key={i} role={m.role} content={m.content} />
+              ))
+            )}
+
+            {isStreaming && (
+              <div className="message ai">
+                <div className="message-avatar">AI</div>
+                <div className="message-content">
+                  <div className="typing-indicator">
+                    <div className="typing-dot" />
+                    <div className="typing-dot" />
+                    <div className="typing-dot" />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="input-area">
+          <div className="input-container">
+            <div className="input-wrapper">
+              <textarea
+                className="message-input"
+                placeholder="Message PersNote..."
+                rows={1}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && sendMessage()}
+                disabled={isStreaming}
+              />
+              <button
+                className="send-button"
+                onClick={sendMessage}
+                disabled={!input.trim() || isStreaming}
+              >
+                <svg
+                  className="send-icon"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <line x1="22" y1="2" x2="11" y2="13" />
+                  <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                </svg>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   );
-};
+}
