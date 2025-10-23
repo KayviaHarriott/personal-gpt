@@ -6,23 +6,86 @@ dotenv.config();
 
 const app = express();
 
-// ✅ Allow all origins (for testing). Restrict this in production.
+// ✅ Allow all origins (for testing). Restrict in production
 app.use(
   cors({
     origin: "*",
     methods: ["GET", "POST"],
   })
 );
-
 app.use(express.json());
 
 const OLLAMA_URL = process.env.OLLAMA_URL;
+const RUNPOD_API_KEY = process.env.RUNPOD_API_KEY;
+const RUNPOD_POD_ID = process.env.RUNPOD_POD_ID;
 const PORT = process.env.PORT || 3000;
 
 if (!OLLAMA_URL) {
   console.error("❌ Missing OLLAMA_URL in .env");
   process.exit(1);
 }
+
+if (!RUNPOD_API_KEY || !RUNPOD_POD_ID) {
+  console.warn("⚠️ RunPod API credentials missing — pod control disabled");
+}
+
+// ------------------------
+// ⚡ POD CONTROL ENDPOINTS
+// ------------------------
+
+async function runPodMutation(mutation) {
+  const res = await fetch("https://api.runpod.io/graphql", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${RUNPOD_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ query: mutation }),
+  });
+  return res.json();
+}
+
+app.post("/pod/start", async (req, res) => {
+  if (!RUNPOD_API_KEY || !RUNPOD_POD_ID)
+    return res.status(500).json({ error: "Missing RunPod credentials" });
+
+  try {
+    const query = `
+      mutation {
+        podResume(input: { podId: "${RUNPOD_POD_ID}" }) {
+          id
+          desiredStatus
+        }
+      }
+    `;
+    const data = await runPodMutation(query);
+    res.json({ success: true, data });
+  } catch (err) {
+    console.error("❌ Failed to start pod:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/pod/stop", async (req, res) => {
+  if (!RUNPOD_API_KEY || !RUNPOD_POD_ID)
+    return res.status(500).json({ error: "Missing RunPod credentials" });
+
+  try {
+    const query = `
+      mutation {
+        podStop(input: { podId: "${RUNPOD_POD_ID}" }) {
+          id
+          desiredStatus
+        }
+      }
+    `;
+    const data = await runPodMutation(query);
+    res.json({ success: true, data });
+  } catch (err) {
+    console.error("❌ Failed to stop pod:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // ------------------------
 // 🧠 CHAT STREAM ENDPOINT
@@ -37,13 +100,11 @@ app.post("/chat", async (req, res) => {
         .json({ error: "Request body must include a 'messages' array" });
     }
 
-    // Tell the browser this will be a streaming response (Server-Sent Events)
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
     res.setHeader("Connection", "keep-alive");
-    res.flushHeaders?.(); // In case Express compression is enabled
+    res.flushHeaders?.();
 
-    // 🔄 Forward the chat request to Ollama (streaming)
     const response = await fetch(`${OLLAMA_URL}/api/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -58,7 +119,6 @@ app.post("/chat", async (req, res) => {
       throw new Error(`Ollama request failed: ${response.statusText}`);
     }
 
-    // Stream Ollama output line by line to the client
     const decoder = new TextDecoder();
     const reader = response.body.getReader();
 
@@ -66,12 +126,9 @@ app.post("/chat", async (req, res) => {
       const { value, done } = await reader.read();
       if (done) break;
       const chunk = decoder.decode(value, { stream: true });
-
-      // ✅ Send each chunk as a separate SSE event
       res.write(chunk);
     }
 
-    // Signal end of stream
     res.write("\n[STREAM_END]\n");
     res.end();
   } catch (err) {
