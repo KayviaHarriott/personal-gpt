@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { streamChat } from "../api/chatAPI";
+import { streamChat, toggleRunPod } from "../api/chatAPI";
 import type { Message } from "../api/chatAPI";
 import { ChatBubble } from "../components/ChatBubble";
 import "./Dashboard.css";
@@ -10,6 +10,25 @@ export const Dashboard = () => {
   const [theme, setTheme] = useState(localStorage.getItem("theme") || "light");
   const [isStreaming, setIsStreaming] = useState(false);
   const API_URL = import.meta.env.VITE_BACKEND_URL;
+  const [podActive, setPodActive] = useState(false); // 🟢 track pod state
+  const [loadingPod, setLoadingPod] = useState(false);
+
+  // ... existing functions ...
+
+  const handleTogglePod = async () => {
+    try {
+      setLoadingPod(true);
+      const result = await toggleRunPod(API_URL, !podActive);
+      console.log("RunPod result:", result);
+      setPodActive(!podActive);
+    } catch (err) {
+      console.error("Failed to toggle RunPod:", err);
+      alert(`Failed to ${!podActive ? "start" : "stop"} RunPod`);
+    } finally {
+      setLoadingPod(false);
+    }
+  };
+
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -123,6 +142,23 @@ export const Dashboard = () => {
                   <path d="M6 .278a.768.768 0 0 1 .08.858A7.208 7.208 0 0 0 5.202 4.6a7.2 7.2 0 0 0 7.318 7.277 8.35 8.35 0 0 1-4.175 4.123C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.752.752 0 0 1 6 .278z" />
                 </svg>
                 <span>Dark Mode</span>
+              </>
+            )}
+          </button>
+          <button
+            className="theme-toggle"
+            onClick={handleTogglePod}
+            disabled={loadingPod}
+          >
+            {loadingPod ? (
+              <span>Loading...</span>
+            ) : podActive ? (
+              <>
+                <span style={{ color: "green" }}>🟢 Pod ON</span>
+              </>
+            ) : (
+              <>
+                <span style={{ color: "red" }}>🔴 Pod OFF</span>
               </>
             )}
           </button>

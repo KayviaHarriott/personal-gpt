@@ -51,3 +51,20 @@ export async function streamChat(
 
   return assistantReply;
 }
+
+
+export const toggleRunPod = async (API_URL: string, turnOn: boolean) => {
+  const endpoint = turnOn ? "/pod/start" : "/pod/stop";
+
+  const response = await fetch(`${API_URL}${endpoint}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to ${turnOn ? "start" : "stop"} pod`);
+  }
+
+  const data = await response.json();
+  return data;
+};
